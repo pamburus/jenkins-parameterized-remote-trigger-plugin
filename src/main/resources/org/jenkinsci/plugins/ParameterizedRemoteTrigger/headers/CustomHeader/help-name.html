@@ -1,0 +1,23 @@
+<div>
+    The name of the HTTP header to send with requests to the remote Jenkins server.
+    <p>
+        <strong>Examples:</strong>
+        <ul>
+            <li><code>X-API-Key</code> - API authentication key</li>
+            <li><code>X-Tenant-ID</code> - Multi-tenant identifier</li>
+            <li><code>X-Client-Name</code> - Identifying client application</li>
+        </ul>
+    </p>
+    <p>
+        <strong>Token Macro Support:</strong> This field supports Jenkins token macros.
+        You can use build variables and environment variables such as:
+        <ul>
+            <li><code>X-Build-${BUILD_NUMBER}</code></li>
+            <li><code>X-Job-${JOB_NAME}</code></li>
+        </ul>
+    </p>
+    <p>
+        <strong>Note:</strong> Certain headers like <code>Authorization</code>, <code>Content-Type</code>,
+        <code>Content-Length</code>, and the CSRF crumb header are protected and cannot be overridden.
+    </p>
+</div>

@@ -59,6 +59,12 @@ import org.jenkinsci.plugins.ParameterizedRemoteTrigger.exceptions.ExceedRetryLi
 import org.jenkinsci.plugins.ParameterizedRemoteTrigger.exceptions.ForbiddenException;
 import org.jenkinsci.plugins.ParameterizedRemoteTrigger.exceptions.UnauthorizedException;
 import org.jenkinsci.plugins.ParameterizedRemoteTrigger.exceptions.UrlNotFoundException;
+import org.jenkinsci.plugins.ParameterizedRemoteTrigger.headers.CustomHeaders;
+
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Set;
 
 import hudson.AbortException;
 import hudson.ProxyConfiguration;
@@ -70,6 +76,13 @@ public class HttpHelper {
 	private static final String buildTokenRootUrl = "/buildByToken";
 	public static final String HTTP_GET = "GET";
 	public static final String HTTP_POST = "POST";
+
+	/**
+	 * Protected headers that cannot be overridden by custom headers
+	 */
+	private static final Set<String> PROTECTED_HEADERS = new HashSet<>(Arrays.asList(
+		"authorization", "content-type", "content-length"
+	));
 
 	private static Logger logger = Logger.getLogger(HttpHelper.class.getName());
 
@@ -276,6 +289,103 @@ public class HttpHelper {
 	}
 
 	/**
+	 * Gets the crumb header name if CSRF protection is enabled, otherwise returns null.
+	 *
+	 * @param context the build context
+	 * @param auth the auth configuration
+	 * @param isCacheEnabled whether crumb cache is enabled
+	 * @return the crumb header name or null if CSRF protection is not enabled
+	 * @throws IOException if there is an error getting the crumb
+	 */
+	private static String getCrumbHeaderName(BuildContext context, Auth2 auth, boolean isCacheEnabled) throws IOException {
+		String method = "POST";
+		if (auth.requiresCrumb()) {
+			JenkinsCrumb crumb = getCrumb(context, auth, isCacheEnabled);
+			if (crumb.isEnabledOnRemote()) {
+				return crumb.getHeaderId();
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Applies custom HTTP headers to the connection.
+	 * Merges global headers from the remote server and job-level headers,
+	 * with job-level headers taking precedence.
+	 *
+	 * @param connection the HTTP connection
+	 * @param context the build context containing custom headers
+	 * @param crumbHeaderName the CSRF crumb header name to protect from override
+	 */
+	private static void applyCustomHeaders(HttpURLConnection connection, BuildContext context, String crumbHeaderName) {
+		// Merge global and job-level headers
+		Map<String, String> mergedHeaders = new LinkedHashMap<>();
+
+		// Start with global headers from remote server
+		if (context.effectiveRemoteServer != null && context.effectiveRemoteServer.getCustomHeaders() != null) {
+			Map<String, String> globalHeaders = context.effectiveRemoteServer.getCustomHeaders().getHeadersMap(context);
+			for (Map.Entry<String, String> entry : globalHeaders.entrySet()) {
+				if (entry.getKey() != null && !entry.getKey().trim().isEmpty()) {
+					mergedHeaders.put(entry.getKey().toLowerCase(), entry.getKey() + ":" + entry.getValue());
+				}
+			}
+		}
+
+		// Override with job-level headers
+		if (context.customHeaders != null) {
+			Map<String, String> jobHeaders = context.customHeaders.getHeadersMap(context);
+			for (Map.Entry<String, String> entry : jobHeaders.entrySet()) {
+				if (entry.getKey() != null && !entry.getKey().trim().isEmpty()) {
+					mergedHeaders.put(entry.getKey().toLowerCase(), entry.getKey() + ":" + entry.getValue());
+				}
+			}
+		}
+
+		// Apply merged headers to connection
+		for (Map.Entry<String, String> entry : mergedHeaders.entrySet()) {
+			String lowerCaseKey = entry.getKey();
+			String[] parts = entry.getValue().split(":", 2);
+			if (parts.length != 2) continue;
+
+			String headerName = parts[0];
+			String headerValue = parts[1];
+
+			// Skip protected headers
+			if (PROTECTED_HEADERS.contains(lowerCaseKey)) {
+				logger.warning(String.format(
+					"Skipping custom header '%s' - this is a protected header managed by the plugin",
+					headerName
+				));
+				continue;
+			}
+
+			// Skip crumb header
+			if (crumbHeaderName != null && headerName.equalsIgnoreCase(crumbHeaderName)) {
+				logger.warning(String.format(
+					"Skipping custom header '%s' - this is the CSRF crumb header managed by the plugin",
+					headerName
+				));
+				continue;
+			}
+
+			// Apply the header
+			connection.setRequestProperty(headerName, headerValue);
+
+			// Log header name (not value) in enhanced logging mode
+			if (context.run != null) {
+				try {
+					java.lang.reflect.Method method = context.getClass().getMethod("getEnhancedLogging");
+					if (method != null && (Boolean) method.invoke(context)) {
+						logger.fine(String.format("Applied custom header: %s", headerName));
+					}
+				} catch (Exception e) {
+					// Enhanced logging check failed, ignore
+				}
+			}
+		}
+	}
+
+	/**
 	 * Returns a URLConnection which can be casted to HttpUrlConnection or HttpsUrlConnection
 	 * If the user wanted to trust all certificates, the TrustManager and HostVerifier of the connection
 	 * will be set properly.
@@ -446,6 +556,11 @@ public class HttpHelper {
 			conn.setRequestMethod(requestType);
 			conn.setReadTimeout(readTimeout);
 			addCrumbToConnection(conn, context, auth, isCrubmCacheEnabled);
+
+			// Apply custom headers after crumb but before connect
+			String crumbHeaderName = getCrumbHeaderName(context, auth, isCrubmCacheEnabled);
+			applyCustomHeaders(conn, context, crumbHeaderName);
+
 			// wait up to 5 seconds for the connection to be open
 			conn.setConnectTimeout(5000);
 			if (HTTP_POST.equalsIgnoreCase(requestType)) {

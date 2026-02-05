@@ -1,0 +1,22 @@
+<div>
+    The value of the HTTP header to send with requests to the remote Jenkins server.
+    <p>
+        <strong>Token Macro Support:</strong> This field supports Jenkins token macros.
+        You can use build variables and environment variables such as:
+        <ul>
+            <li><code>${BUILD_NUMBER}</code></li>
+            <li><code>${JOB_NAME}</code></li>
+            <li><code>${GIT_COMMIT}</code></li>
+        </ul>
+    </p>
+    <p>
+        <strong>Security:</strong> If the "Mark as Secret" checkbox is enabled, this value will be:
+        <ul>
+            <li>Encrypted at rest in Jenkins configuration files using <code>hudson.util.Secret</code></li>
+            <li>Masked in console output and logs (Jenkins automatically masks Secret values)</li>
+        </ul>
+    </p>
+    <p>
+        Use the secret option for sensitive values like API keys, tokens, or other credentials.
+    </p>
+</div>

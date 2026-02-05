@@ -16,6 +16,7 @@ import edu.umd.cs.findbugs.annotations.CheckForNull;
 import org.jenkinsci.plugins.ParameterizedRemoteTrigger.auth2.Auth2;
 import org.jenkinsci.plugins.ParameterizedRemoteTrigger.auth2.Auth2.Auth2Descriptor;
 import org.jenkinsci.plugins.ParameterizedRemoteTrigger.auth2.NoneAuth;
+import org.jenkinsci.plugins.ParameterizedRemoteTrigger.headers.CustomHeaders;
 import org.jenkinsci.plugins.ParameterizedRemoteTrigger.utils.NaiveTrustManager;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -61,6 +62,8 @@ public class RemoteJenkinsServer extends AbstractDescribableImpl<RemoteJenkinsSe
     @CheckForNull
     private String     address;
     private boolean    useProxy;
+    @CheckForNull
+    private CustomHeaders customHeaders;
 
     @DataBoundConstructor
     public RemoteJenkinsServer() {
@@ -74,12 +77,18 @@ public class RemoteJenkinsServer extends AbstractDescribableImpl<RemoteJenkinsSe
         //migrate Auth To Auth2
         if(auth2 == null) {
             if(auth == null || auth.size() <= 0) {
-                auth2 = DEFAULT_AUTH; 
+                auth2 = DEFAULT_AUTH;
             } else {
                 auth2 = Auth.authToAuth2(auth);
             }
         }
         auth = null;
+
+        // Initialize customHeaders if null for backward compatibility
+        if(customHeaders == null) {
+            customHeaders = new CustomHeaders();
+        }
+
         return this;
     }
 
@@ -120,6 +129,12 @@ public class RemoteJenkinsServer extends AbstractDescribableImpl<RemoteJenkinsSe
     public void setAddress(String address)
     {
         this.address = address;
+    }
+
+    @DataBoundSetter
+    public void setCustomHeaders(CustomHeaders customHeaders)
+    {
+        this.customHeaders = customHeaders;
     }
 
     // Getters
@@ -163,6 +178,11 @@ public class RemoteJenkinsServer extends AbstractDescribableImpl<RemoteJenkinsSe
     public boolean getTrustAllCertificates() { return trustAllCertificates; }
 
     public boolean getOverrideTrustAllCertificates() { return overrideTrustAllCertificates; }
+
+    @CheckForNull
+    public CustomHeaders getCustomHeaders() {
+        return (customHeaders != null) ? customHeaders : new CustomHeaders();
+    }
 
 
     @Extension
@@ -260,6 +280,7 @@ public class RemoteJenkinsServer extends AbstractDescribableImpl<RemoteJenkinsSe
     public RemoteJenkinsServer clone() throws CloneNotSupportedException {
         RemoteJenkinsServer clone = (RemoteJenkinsServer)super.clone();
         clone.auth2 = (auth2 == null) ? null : auth2.clone();
+        clone.customHeaders = (customHeaders == null) ? null : customHeaders.clone();
         return clone;
     }
 

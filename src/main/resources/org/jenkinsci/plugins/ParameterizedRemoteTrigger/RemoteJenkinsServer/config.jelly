@@ -24,8 +24,12 @@
         <f:checkbox />
     </f:entry>
 
+    <f:optionalBlock field="customHeaders" title="Add custom HTTP headers" inline="false">
+        <f:nested />
+    </f:optionalBlock>
+
     <f:entry title="">
-        <div style="float: left">  
+        <div style="float: left">
             <f:repeatableDeleteButton />
         </div>
     </f:entry>

@@ -34,6 +34,7 @@ import org.apache.commons.lang.exception.ExceptionUtils;
 import org.jenkinsci.plugins.ParameterizedRemoteTrigger.auth2.Auth2;
 import org.jenkinsci.plugins.ParameterizedRemoteTrigger.auth2.Auth2.Auth2Descriptor;
 import org.jenkinsci.plugins.ParameterizedRemoteTrigger.auth2.NullAuth;
+import org.jenkinsci.plugins.ParameterizedRemoteTrigger.headers.CustomHeaders;
 import org.jenkinsci.plugins.ParameterizedRemoteTrigger.parameters2.JobParameters;
 import org.jenkinsci.plugins.ParameterizedRemoteTrigger.parameters2.JobParameters.ParametersDescriptor;
 import org.jenkinsci.plugins.ParameterizedRemoteTrigger.parameters2.MapParameters;
@@ -144,6 +145,7 @@ public class RemoteBuildConfiguration extends Builder implements SimpleBuildStep
 	private boolean useJobInfoCache;
 	private boolean abortTriggeredJob;
 	private boolean disabled;
+	private CustomHeaders customHeaders;
 
 	private transient Map<String, Semaphore> hostLocks = new HashMap<>();
 	private Map<String, Integer> hostPermits = new HashMap<>();
@@ -188,6 +190,12 @@ public class RemoteBuildConfiguration extends Builder implements SimpleBuildStep
 		if (hostPermits == null) {
 			hostPermits = new HashMap<>();
 		}
+
+		// Initialize customHeaders if null for backward compatibility
+		if (customHeaders == null) {
+			customHeaders = new CustomHeaders();
+		}
+
 		return this;
 	}
 
@@ -313,6 +321,11 @@ public class RemoteBuildConfiguration extends Builder implements SimpleBuildStep
 	@DataBoundSetter
 	public void setUseCrumbCache(boolean useCrumbCache) {
 		this.useCrumbCache = useCrumbCache;
+	}
+
+	@DataBoundSetter
+	public void setCustomHeaders(CustomHeaders customHeaders) {
+		this.customHeaders = customHeaders;
 	}
 
 	public Map<String, String> getParameterMap(BuildContext context) throws AbortException {
@@ -567,7 +580,7 @@ public class RemoteBuildConfiguration extends Builder implements SimpleBuildStep
 		RemoteJenkinsServer effectiveRemoteServer = null;
 		try (AutoCloseable ignored = OtelUtils.isOpenTelemetryAvailable() ? OtelUtils.activeSpanIfAvailable(build) : OtelUtils.noop()) {
 			effectiveRemoteServer = evaluateEffectiveRemoteHost(new BasicBuildContext(build, workspace, listener));
-			context = new BuildContext(build, workspace, listener, listener.getLogger(), effectiveRemoteServer);
+			context = new BuildContext(build, workspace, listener, listener.getLogger(), effectiveRemoteServer, null, this.getCustomHeaders());
 			handle = performTriggerAndGetQueueId(context);
 			performWaitForBuild(context, handle);
 		} catch (InterruptedException e) {
@@ -1154,6 +1167,10 @@ public class RemoteBuildConfiguration extends Builder implements SimpleBuildStep
 
 	public boolean getOverrideTrustAllCertificates() {
 		return overrideTrustAllCertificates;
+	}
+
+	public CustomHeaders getCustomHeaders() {
+		return (customHeaders != null) ? customHeaders : new CustomHeaders();
 	}
 
 	// This indicates to Jenkins that this is an implementation of an extension

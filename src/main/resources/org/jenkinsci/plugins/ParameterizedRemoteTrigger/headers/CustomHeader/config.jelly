@@ -1,0 +1,12 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
+    <f:entry title="${%Header Name}" field="name">
+        <f:textbox />
+    </f:entry>
+    <f:entry title="${%Mark as Secret}" field="isSecret">
+        <f:checkbox />
+    </f:entry>
+    <f:entry title="${%Header Value}" field="value">
+        <f:textarea />
+    </f:entry>
+</j:jelly>

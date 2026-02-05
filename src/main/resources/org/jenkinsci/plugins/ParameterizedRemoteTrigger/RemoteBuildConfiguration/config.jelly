@@ -45,6 +45,10 @@
 
         <f:dropdownDescriptorSelector field="parameters2" title="Parameters" descriptors="${descriptor.getParametersDescriptors()}" default="${descriptor.getDefaultParametersDescriptor()}" />
 
+        <f:optionalBlock field="customHeaders" title="Add custom HTTP headers" inline="false">
+            <f:nested />
+        </f:optionalBlock>
+
         <f:entry title="Max connection" field="maxConn">
             <f:textbox default="1" />
         </f:entry>

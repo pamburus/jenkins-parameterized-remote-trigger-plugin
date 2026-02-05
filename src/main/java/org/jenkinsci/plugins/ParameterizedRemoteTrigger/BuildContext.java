@@ -7,6 +7,7 @@ import java.io.PrintStream;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+import org.jenkinsci.plugins.ParameterizedRemoteTrigger.headers.CustomHeaders;
 import org.jenkinsci.plugins.ParameterizedRemoteTrigger.pipeline.Handle;
 
 import hudson.FilePath;
@@ -36,12 +37,23 @@ public class BuildContext extends BasicBuildContext
     @NonNull
     public final String currentItem;
 
+    /**
+     * Custom HTTP headers to include in requests.
+     */
+    @NonNull
+    public final CustomHeaders customHeaders;
 
-    public BuildContext(@Nullable Run<?, ?> run, @Nullable FilePath workspace, @Nullable TaskListener listener, @NonNull PrintStream logger, @NonNull RemoteJenkinsServer effectiveRemoteServer, @Nullable String currentItem) {
+
+    public BuildContext(@Nullable Run<?, ?> run, @Nullable FilePath workspace, @Nullable TaskListener listener, @NonNull PrintStream logger, @NonNull RemoteJenkinsServer effectiveRemoteServer, @Nullable String currentItem, @Nullable CustomHeaders customHeaders) {
         super(run, workspace, listener);
         this.logger = logger;
         this.effectiveRemoteServer = effectiveRemoteServer;
         this.currentItem = getCurrentItem(run, currentItem);
+        this.customHeaders = customHeaders != null ? customHeaders : new CustomHeaders();
+    }
+
+    public BuildContext(@Nullable Run<?, ?> run, @Nullable FilePath workspace, @Nullable TaskListener listener, @NonNull PrintStream logger, @NonNull RemoteJenkinsServer effectiveRemoteServer, @Nullable String currentItem) {
+        this(run, workspace, listener, logger, effectiveRemoteServer, currentItem, null);
     }
 
     public BuildContext(@Nullable Run<?, ?> run, @Nullable FilePath workspace, @Nullable TaskListener listener, @NonNull PrintStream logger, @NonNull RemoteJenkinsServer effectiveRemoteServer) {
@@ -50,7 +62,7 @@ public class BuildContext extends BasicBuildContext
 
     public BuildContext(@NonNull PrintStream logger, @NonNull RemoteJenkinsServer effectiveRemoteServer, @Nullable String currentItem)
     {
-        this(null, null, null, logger, effectiveRemoteServer, currentItem);
+        this(null, null, null, logger, effectiveRemoteServer, currentItem, null);
     }
 
     @NonNull
